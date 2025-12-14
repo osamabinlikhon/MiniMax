@@ -1,0 +1,17 @@
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@latest --activate
+WORKDIR /app
+
+COPY package.json pnpm-workspace.yaml ./
+COPY libs/common/package.json ./libs/common/
+COPY libs/queue/package.json ./libs/queue/
+COPY services/planner/package.json ./services/planner/
+
+RUN pnpm install --frozen-lockfile
+
+COPY libs/ ./libs/
+COPY services/planner/ ./services/planner/
+
+ENV NODE_ENV=development
+EXPOSE 3001
+CMD ["pnpm", "--filter", "@minimax/planner", "dev"]

@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # Redis for queue management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: minimax
+      POSTGRES_PASSWORD: minimax_secret
+      POSTGRES_DB: minimax
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U minimax']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://minimax:minimax_secret@postgres:5432/minimax
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - JWT_SECRET=${JWT_SECRET:-minimax-jwt-secret}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./services/api:/app/services/api
+      - ./libs:/app/libs
+      - /app/node_modules
+
+  # Planner Service
+  planner:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.planner
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://minimax:minimax_secret@postgres:5432/minimax
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/planner:/app/services/planner
+      - ./libs:/app/libs
+      - /app/node_modules
+
+  # Agent Worker
+  agent-worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://minimax:minimax_secret@postgres:5432/minimax
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/agent-worker:/app/services/agent-worker
+      - ./libs:/app/libs
+      - /app/node_modules
+    deploy:
+      replicas: 2
+
+  # Next.js Frontend
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+    ports:
+      - '3002:3000'
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./libs:/app/libs
+      - /app/node_modules
+      - /app/apps/web/.next
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: minimax-network

@@ -1,0 +1,19 @@
+{
+  "name": "services-agent-worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/worker.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.66.0",
+    "ioredis": "^5.3.2",
+    "dotenv": "^16.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0"
+  }
+}

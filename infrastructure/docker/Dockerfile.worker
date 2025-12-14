@@ -1,0 +1,16 @@
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@latest --activate
+WORKDIR /app
+
+COPY package.json pnpm-workspace.yaml ./
+COPY libs/common/package.json ./libs/common/
+COPY libs/queue/package.json ./libs/queue/
+COPY services/agent-worker/package.json ./services/agent-worker/
+
+RUN pnpm install --frozen-lockfile
+
+COPY libs/ ./libs/
+COPY services/agent-worker/ ./services/agent-worker/
+
+ENV NODE_ENV=development
+CMD ["pnpm", "--filter", "@minimax/agent-worker", "dev"]
