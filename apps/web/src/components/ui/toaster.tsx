@@ -23,6 +23,7 @@ export function Toaster() {
             <button
               onClick={() => dismiss(toast.id)}
               className="text-muted-foreground hover:text-foreground"
+              aria-label="Dismiss notification"
             >
               <X className="w-4 h-4" />
             </button>
